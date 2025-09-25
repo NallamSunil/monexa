@@ -1,0 +1,82 @@
+import boto3
+import json
+
+# Your AWS credentials and model information
+# WARNING: Do not hardcode your credentials in a public repository.
+# Use environment variables or a credentials file.
+aws_access_key_id = "YOUR_ACCESS_KEY_ID"
+aws_secret_access_key = "YOUR_SECRET_ACCESS_KEY"
+region_name = "YOUR_AWS_REGION"  # e.g., 'us-east-1'
+model_id = "amazon.nova-pro-v1"  # Or the specific model ID you have
+
+# Create a Boto3 client for Amazon Bedrock Runtime
+client = boto3.client(
+    service_name='bedrock-runtime',
+    region_name=region_name,
+    aws_access_key_id=aws_access_key_id,
+    aws_secret_access_key=aws_secret_access_key
+)
+
+def get_chatbot_response(prompt, conversation_history):
+    """
+    Sends a message to the Nova Pro model and returns its response.
+    
+    Args:
+        prompt (str): The user's new message.
+        conversation_history (list): A list of previous messages in the conversation.
+    
+    Returns:
+        str: The chatbot's response.
+    """
+    
+    # Add the new user prompt to the conversation history
+    messages = conversation_history + [{"role": "user", "content": [{"text": prompt}]}]
+    
+    # The request body for the Converse API
+    body = {
+        "modelId": model_id,
+        "messages": messages,
+        "inferenceConfig": {
+            "maxTokens": 4096,  # Adjust as needed
+            "temperature": 0.7, # Adjust creativity
+            "topP": 0.9
+        }
+    }
+    
+    try:
+        response = client.converse(
+            modelId=body["modelId"],
+            messages=body["messages"],
+            inferenceConfig=body["inferenceConfig"]
+        )
+        
+        # Extract the text from the model's response
+        response_text = response['output']['message']['content'][0]['text']
+        return response_text
+        
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return "Sorry, I am unable to process your request right now."
+
+def run_chat_session():
+    """
+    Runs an interactive chat session with the chatbot.
+    """
+    conversation_history = []
+    print("Welcome to the Nova Pro Chatbot! Type 'exit' to end the conversation.")
+    
+    while True:
+        user_input = input("You: ")
+        
+        if user_input.lower() == 'exit':
+            break
+            
+        response = get_chatbot_response(user_input, conversation_history)
+        print(f"Chatbot: {response}")
+        
+        # Update the conversation history for the next turn
+        conversation_history.append({"role": "user", "content": [{"text": user_input}]})
+        conversation_history.append({"role": "assistant", "content": [{"text": response}]})
+
+if __name__ == "__main__":
+    run_chat_session()
